@@ -1,11 +1,12 @@
 '''Modul to setup and manipulate Sherpa model expressions which consist
 of one background model and many identicla lines.
 '''
-
+import numpy as np
 '''It is necessary to use from import * to get access to model types
 which are specified as string (e.g. 'gauss1d') by the user.
 '''
 from sherpa.astro.ui import *
+
 import shmodelshelper as smh
 
 def modelstring(n_lines, contmodel, linemodel, contmodname = '', linemodname = '', prefix = ''):
@@ -82,7 +83,7 @@ class model(object):
         
     def set_model(self):
         if self.convol_model:
-            set_full_model(self.convol_model + '(' + self.modelstring() + ')')
+            set_full_model(self.convol_model + ' (' + self.modelstring() + ')')
         else:
             set_model(self.modelstring())
     

@@ -1,3 +1,7 @@
+import numpy as np
+from scipy.ndimage import maximum_filter1d
+#from sigma_clip import sigma_clipping
+
 def findlines(x, y, fwhm, smoothwindow = 'hanning', sigma_threshold = 3.):
 
     '''
@@ -6,9 +10,23 @@ def findlines(x, y, fwhm, smoothwindow = 'hanning', sigma_threshold = 3.):
     - maximum_filter = array: will find the peaks
     - sigma_clipping = are the peaks large enough to be relevant?
     
-    y could be e.g. the flux, the residual flux after subtracting the
-    model or als res_flux / error (where is significant stuff missing?)
+    Parameters
+    ----------
+    x : ndarray
+        x values, e.g. wavelength
+    y : ndarray
+        y values, e.g. flux or res_flux / error
+    fwhm : float
+        estimate for FWHM of lines. Used as smoothing scale
+    smoothwindow : string or None
+        if `smoothwindow` is on of `['flat', 'hanning', 'hamming',
+        'bartlett', 'blackman']` a correspondig window function 
+        will be used to smooth the signal before line detection.
     
+    Returns
+    -------
+    peaks : ndarray
+        index numbers for peaks found
     '''
     fwhminpix = int(fwhm / np.diff(x).mean())
     if smoothwindow:
@@ -21,7 +39,7 @@ def findlines(x, y, fwhm, smoothwindow = 'hanning', sigma_threshold = 3.):
     # believe only peaks which are so large, that the get clipped by sigma_clipping
     #maxindex = maxindex & (clipped_y.mask == False)
 
-    return maxindex.nonzero()[0]
+    return np.flatnonzero(maxindex)
 
 def smooth(x,window_len=11, window='hanning'):
     """smooth the data using a window with requested size.
@@ -31,13 +49,20 @@ def smooth(x,window_len=11, window='hanning'):
     (with the window size) in both ends so that transient parts are minimized
     in the begining and end part of the output signal.
     
-    input:
-        x: the input signal 
-        window_len: the dimension of the smoothing window; should be an odd integer
-        window: the type of window from 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'
-            flat window will produce a moving average smoothing.
+    Parameters
+    ----------
+    x: ndarray
+        the input signal 
+    window_len: integer , optional
+        The dimension of the smoothing window; should be an odd integer
+    window: string, optional
+        The type of window from `['flat', 'hanning', 'hamming', 'bartlett',
+        'blackman']`. A 'flat' window will produce a moving average
+        smoothing.
 
-    output:
+    Returns
+    -------
+    y : ndarray
         the smoothed signal
         
     example:
@@ -46,8 +71,8 @@ def smooth(x,window_len=11, window='hanning'):
     x=sin(t)+randn(len(t))*0.1
     y=smooth(x)
     
-    see also: 
-    
+    See also
+    --------
     numpy.hanning, numpy.hamming, numpy.bartlett, numpy.blackman, numpy.convolve
     scipy.signal.lfilter
  

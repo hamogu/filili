@@ -106,7 +106,7 @@ def load_pars(filename, modcomps=[]):
                 setattr(par, elem, param)
 
 
-def copy_pars(oldcomp, newcomp):
+def copy_pars(oldcomp, newcomp, sametype = True):
     """copy parameters from one component to an onther
     
     Both components need to be of the same type, e.g. both are gaus1d models
@@ -123,29 +123,22 @@ def copy_pars(oldcomp, newcomp):
         component with original values
     :param newcomp: Sherpa model component
         values of this component will be set
-    
+        
+    TBD: replace get_model_component(oldcomp).pars wit hsome way that iterates over names, so that parameters can be copied between two line types, even if pos is once the first and once the second parameter. 
     """
-    if not (type(oldcomp) == type(newcomp)):
-        raise TypeError('Old and new model component must be of same type')
+    if sametype:
+        if not (type(oldcomp) == type(newcomp)):
+            raise TypeError('Old and new model component must be of same type')
     #
     for parold, parnew in zip(get_model_component(oldcomp).pars, get_model_component(newcomp).pars):
-        for elem in ["val", "min", "max"]:
-            key = par.fullname + "." + elem
-            setattr(parnew, elem, getattr(parold,elem))
-        # 
-        elem = "frozen"
-        setattr(parnew, elem, getattr(parold,elem))
-        #
-        elem = "link"
-        attr = getattr(par,elem)
-        if attr:
+        for elem in ["val", "min", "max", "frozen", "link"]:
             setattr(parnew, elem, getattr(parold,elem))
 
 def get_model_parts():
     '''obtain a list of strings for sherpa models
     
     Iterate through all components which are part of the Sherpa model
-    and return their identifiers. Ignoe all composite models.
+    and return their identifiers. Ignore all composite models.
     
     Example:
     >>> from sherpa.ui import *
