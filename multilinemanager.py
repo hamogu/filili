@@ -67,7 +67,7 @@ class model(object):
     TBD:when looking up parts of the model use get_model_parts instead of n_lines+str(i). This makes it more flexible (modelcomponents might have been deleted by the user / other functions) and might get rid of self.n_lines alltogether.
     '''
     
-    def __init__(self, contmodel, linemodel, contmodname = '', linemodname = '', convol_model = None):
+    def __init__(self, contmodel, linemodel, contmodname = '', linemodname = '', convol_model = None, baseline = None):
         self.contmodel = contmodel
         self.linemodel = linemodel
         if not contmodname:
@@ -76,7 +76,7 @@ class model(object):
             self.linemodname = linemodel.strip()[0]
         if linemodname == contmodname:
             self.linemodname = 'line' + self.linemodname
-        self.baseline = None
+        self.baseline = baseline
         self.n_lines = 0
         self.convol_model = convol_model
         self.set_model()
@@ -139,9 +139,68 @@ class model(object):
                     line_list[par.name][i] = par.val
                     
             return line_list
+                
+    def guess(self, wave, flux, peak, **kwargs):
+        '''Guess simple line parameters
         
+        This method guesses line paramters
+        from the line position and the wave and flux vector.
+        New parameters are added to the `kwargs` dictionary.
+        
+        Parameters
+        ----------
+        wave, flux : ndarray
+            wavelength and flux vectors
+        peak : integer
+            index of peak position in `wave`,`flux` arrays
+        
+        Returns
+        -------
+        kwargs : dictionary
+        '''
+        if 'pos' not in kwargs:
+            kwargs['pos'] = wave[peak]
+        if 'ampl' not in kwargs:
+            kwargs['ampl'] = flux[peak]
+        if 'fwhm' not in kwargs:
+            ampl = flux[peak]
+            ind = np.where(flux > ampl/2.)[0]
+            # if all flux was > ampl/2 ind would look like this:
+            ind_ind = (ind == peak).nonzero()[0][0]
+            ind_comp = np.arange(peak - ind_ind, peak + len(ind) - ind_ind, dtype = np.int)
+            # find the outermost overlap points of ind and ind_comp
+            bool_ind = (ind == ind_comp)
+            kwargs['fwhm'] = wave[max(ind[bool_ind])] - wave[min(ind[bool_ind])]
+        return kwargs
 
 
 class GaussLines(model):
     def __init__(self, contmodel, contmodname = '', **kwargs):
         model.__init__(self, contmodel, 'gauss1d', contmodname = '', **kwargs)
+        
+class LorentzLines(model):
+    def __init__(self, contmodel, contmodname = '', **kwargs):
+        model.__init__(self, contmodel, 'lorentz1d', contmodname = '', **kwargs)
+
+    def guess(self, wave, flux, pos, **kwargs):
+        '''Guess ampl from flux and fwhm value.
+        
+        Due to an inconsistency in Sherpa the `lorentz1d.ampl` really means
+        *area under curve* not *amplitude*. This methods convert the 
+        amplitude to the area under the curve before initializing the line
+        if the FWHM is also given.
+        '''
+        kwargs = super(LorentzLines, self).guess(wave, flux, pos, **kwargs)
+        kwargs['ampl'] = np.pi * kwargs['fwhm'] / 2. * kwargs['ampl']
+        return kwargs
+      
+class COSLines(LorentzLines):
+    '''An example how to extend multilinemanagers
+    
+    This inherits from a multilinemanager and extends some methods to 
+    include instrument specifics like the width of the LSF.
+    '''
+    def guess(self, wave, flux, pos, **kwargs):
+        kwargs = super(COSLines, self).guess(wave, flux, pos, **kwargs)
+        kwargs['fwhm'] -= 0.06
+        return kwargs
