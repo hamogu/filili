@@ -124,17 +124,21 @@ def copy_pars(oldcomp, newcomp, sametype = True):
     :param newcomp: Sherpa model component
         values of this component will be set
         
-    TBD: replace get_model_component(oldcomp).pars wit hsome way that iterates over names, so that parameters can be copied between two line types, even if pos is once the first and once the second parameter. 
+    TBD: replace get_model_component(oldcomp).pars with some way that iterates over names, so that parameters can be copied between two line types, even if pos is once the first and once the second parameter. 
     """
     if sametype:
         if not (type(oldcomp) == type(newcomp)):
             raise TypeError('Old and new model component must be of same type')
     #
     for parold, parnew in zip(get_model_component(oldcomp).pars, get_model_component(newcomp).pars):
-        for elem in ["val", "min", "max", "frozen", "link"]:
+        # min cannot be above max.
+        # set to -+inf to avoid problems with previously set pars
+        setattr(parnew, "min", getattr(parnew, "hard_min"))
+        setattr(parnew, "max", getattr(parnew, "hard_max"))
+        for elem in ["min", "max", "val", "frozen", "link"]:
             setattr(parnew, elem, getattr(parold,elem))
 
-def get_model_parts():
+def get_model_parts(id = None):
     '''obtain a list of strings for sherpa models
     
     Iterate through all components which are part of the Sherpa model
@@ -150,4 +154,4 @@ def get_model_parts():
         ['c', 'lineg1', 'lineg2', 'lineg3']
 
     '''
-    return set([par.modelname for par in get_model().pars])
+    return set([par.modelname for par in get_model(id).pars])
