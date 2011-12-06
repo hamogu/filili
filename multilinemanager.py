@@ -2,6 +2,12 @@
 of one background model and many identicla lines.
 '''
 import numpy as np
+try:
+    import matplotlib.pyplot as plt
+    has_mpl = True
+except ImportError:
+    has_mpl = False
+
 '''It is necessary to use from import * to get access to model types
 which are specified as string (e.g. 'gauss1d') by the user.
 '''
@@ -125,19 +131,15 @@ class model(object):
             the record array holds the values of all parameters of the lines
             in the model.
             If the model has not lines, an empty array is returned.
-        
-        TBD: change to use line_value_list
         '''
         if self.n_lines == 0:
             return np.array([])
         else:
-            line_list = np.zeros(self.n_lines, dtype = {'names': [p.names for p in get_model_component(self.linemodname+'1')], 'formats': self.n_lines * ['f4']})
-            
-            for i in range(self.n_lines):
-                comp = get_model_components(self.linemodname + str(i+1))
-                for par in comp.pars:
-                    line_list[par.name][i] = par.val
-                    
+            names = [p.name for p in get_model_component(self.linemodname+'1').pars]
+            line_list = np.zeros(self.n_lines, dtype = {'names': names, 'formats': len(names) * ['f4']})
+            for name in names:
+                line_list[name] = self.line_value_list(name)
+ 
             return line_list
                 
     def guess(self, wave, flux, peak, **kwargs):
@@ -172,7 +174,39 @@ class model(object):
             bool_ind = (ind == ind_comp)
             kwargs['fwhm'] = wave[max(ind[bool_ind])] - wave[min(ind[bool_ind])]
         return kwargs
-
+        
+    def plot_model_components(self, id = None, legend = True):
+        '''Plot contribution of individual model components
+        
+        If matplotlib can be imported, it is used directly, otherwise
+        if falls back to Sherpa plotting (e.g. with chips).
+        
+        Parameters
+        ----------
+        id : None or Sherpa dataset id
+        
+        Returns
+        -------
+        fig : matplotlib figure instance
+        '''
+        if id is None:
+            id = get_default_id()
+        fig = plt.figure()
+        if has_mpl:
+            ax = fig.add_subplot(111)
+            pl = get_data_plot(id)
+            ax.errorbar(pl.x, pl.y, yerr=pl.yerr, fmt='+', label = 'data')
+            for part in smh.get_model_parts():
+                pl = get_model_component_plot(id, model = part)
+                ax.plot(pl.x, pl.y, label = part)
+            if legend:
+                ax.legend(ncol = 2)
+            ax.set_title('Individual model components')
+        else:
+            plot_fit()
+            for part in smh.get_model_parts():
+                plot_model_component(id, part, overplot = True)
+        return fig
 
 class GaussLines(model):
     def __init__(self, contmodel, contmodname = '', **kwargs):

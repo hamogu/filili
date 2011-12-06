@@ -36,8 +36,8 @@ def findlines(x, y, fwhm, smoothwindow = 'hanning', sigma_threshold = 3.):
     '''
     fwhminpix = int(fwhm / np.diff(x).mean())
     if smoothwindow is not None:
-        print smoothwindow
-        print fwhminpix
+        #print smoothwindow
+        #print fwhminpix
         y = smooth(y, window_len = 3*fwhminpix, window = smoothwindow)
 
     maxindex = (maximum_filter1d(y, max(fwhminpix,3)) == y)
@@ -119,10 +119,9 @@ def smooth(x,window_len=11, window='hanning'):
     return y
 
 smoothwindow = 'hanning'
-sigma_threshold = 2.5
-sleep_time_between_plots = 1.5
+sigma_threshold = 2.
 
-def mainloop(mymodel, fwhm, id = None, maxiter = 5, mindist = 0., do_plots = False):
+def mainloop(mymodel, fwhm, id = None, maxiter = 5, mindist = 0., do_plots = 0):
     
     if id is None:
         id = ui.get_default_id()
@@ -136,10 +135,25 @@ def mainloop(mymodel, fwhm, id = None, maxiter = 5, mindist = 0., do_plots = Fal
     for i in range(maxiter):
         oldmodel = smh.get_model_parts(id)
         res_flux = ui.get_resid_plot(id).y
-        peaks = findlines(wave, res_flux/error, fwhm, smoothwindow = smoothwindow, sigma_threshold = sigma_threshold)
+        if smoothwindow is not None:
+            fwhminpix = int(fwhm / np.diff(wave).mean())
+            y = smooth(res_flux/error, window_len = 3*fwhminpix, window = smoothwindow)
+        else:
+            y = res_flux/error
+        peaks = findlines(wave, y, fwhm, smoothwindow = None, sigma_threshold = sigma_threshold)
+        if do_plots > 2:
+            plt.figure()
+            plt.plot(wave, res_flux/error, 's')
+            for pos in mymodel.line_value_list('pos'):
+                plt.plot([pos, pos], plt.ylim(),'k:')
+            for peak in peaks:
+                plt.plot([wave[peak], wave[peak]], plt.ylim())
+            plt.plot(wave, y)
+            plt.draw()
+            
         for peak in peaks:
             if (len(mymodel.line_value_list('pos')) == 0) or (min(np.abs(mymodel.line_value_list('pos') - wave[peak])) >= mindist):
-                mymodel.add_line(**mymodel.guess(wave, res_flux, peak, fwhm = fwhm))
+                mymodel.add_line(**mymodel.guess(wave, smooth(res_flux, window_len = 3*fwhminpix, window = smoothwindow), peak, fwhm = fwhm))
         newmodel = smh.get_model_parts(id)
         print 'Iteration {0:3n}: {1:3n} lines added'.format(i, len(newmodel) - len(oldmodel))
         
@@ -147,13 +161,16 @@ def mainloop(mymodel, fwhm, id = None, maxiter = 5, mindist = 0., do_plots = Fal
             print 'No new lines added this step - fitting finished'
             break
         # Now do the fitting in Sherpa
-        ui.set_method('simplex')
+        #ui.set_method('simplex')
         ui.fit(id)
-        ui.set_method('moncar')
-        ui.fit(id)
+        #ui.set_method('moncar')
+        #ui.fit(id)
         
-        if do_plots:
-            plt.figure()
+        if do_plots > 0:
+            if do_plots > 1:
+                plt.figure()
+            else:
+                plt.clf()
             ui.plot_fit(id)
             for pos in mymodel.line_value_list('pos'):
                 plt.plot([pos, pos], plt.ylim(),'k:')
@@ -161,12 +178,6 @@ def mainloop(mymodel, fwhm, id = None, maxiter = 5, mindist = 0., do_plots = Fal
                 plt.plot([wave[peak], wave[peak]], plt.ylim())
             plt.plot(wave, res_flux)
             plt.draw()
-            #plt.figure()
-            #plt.plot(wave, res_flux/error, 'rs')
-            #plt.plot(wave, smooth(res_flux/error))
-            #for peak in peaks: plt.plot([wave[peak], wave[peak]], plt.ylim())
-            #plt.draw()
-            #time.sleep(sleep_time_between_plots)
         
 
     else:
