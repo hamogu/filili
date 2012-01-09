@@ -1,12 +1,50 @@
 import time
 import numpy as np
-from scipy.ndimage import maximum_filter1d
-import matplotlib.pylab as plt
+
+try:
+    import matplotlib.pyplot as plt
+    has_mpl = True
+except ImportError:
+    has_mpl = False
+    print 'Warning: findlines.py: No matplotlib found'
+    print '         Some plotting routines are disabled'
+
 #from sigma_clip import sigma_clipping
 # TBD: Should this be separated in code that requires sherpa and code that does not?
 import sherpa.astro.ui as ui
 
 import shmodelshelper as smh
+
+def maximum_filter_noscipy(input, size):
+    '''reimplement scipy.ndimage.maximum_filter1d
+    
+    This implementation is in pure python for compatability in case
+    scipy is not available. The scipy version is written in C and should
+    be faster for larger arrays. 
+    This procedure implemnts only a subset of the options from the 
+    scipy verion.
+    
+    Calculate a one-dimensional maximum filter along a 1-d array.
+    
+    Parameters
+    ----------
+    input : array-like
+        input array to filter
+    size : int
+        length along which to calculate 1D maximum
+
+    '''
+    if input.ndim != 1:
+        raise ValueError('Input array must have exactly one dimension')
+    maxfilter = np.zeros_like(input)
+    for i in range(input.size):
+        maxfilter[i] = np.maximum(input[max(0, i-size):min(i+size, input.size)])
+    return maxfilter
+
+try:
+    from scipy.ndimage import maximum_filter1d
+except ImportError:
+    maximum_filter1d = maximum_filter_noscipy
 
 def findlines(x, y, fwhm, smoothwindow = 'hanning', sigma_threshold = 3.):
 
@@ -141,7 +179,7 @@ def mainloop(mymodel, fwhm, id = None, maxiter = 5, mindist = 0., do_plots = 0):
         else:
             y = res_flux/error
         peaks = findlines(wave, y, fwhm, smoothwindow = None, sigma_threshold = sigma_threshold)
-        if do_plots > 2:
+        if has_mpl and (do_plots > 2):
             plt.figure()
             plt.plot(wave, res_flux/error, 's')
             for pos in mymodel.line_value_list('pos'):
@@ -166,7 +204,7 @@ def mainloop(mymodel, fwhm, id = None, maxiter = 5, mindist = 0., do_plots = 0):
         #ui.set_method('moncar')
         #ui.fit(id)
         
-        if do_plots > 0:
+        if has_mpl and (do_plots > 0):
             if do_plots > 1:
                 plt.figure()
             else:
