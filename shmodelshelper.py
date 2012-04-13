@@ -5,6 +5,7 @@ Module with helpers to manage Sherpa model parameters
 import json
 import os
 from sherpa.astro.ui import get_model_component, get_model
+from sherpa.utils.err import IdentifierErr
 
 def save_pars(filename, modcomps=[], clobber=False):
     """
@@ -154,4 +155,7 @@ def get_model_parts(id = None):
         ['c', 'lineg1', 'lineg2', 'lineg3']
 
     '''
-    return set([par.modelname for par in get_model(id).pars])
+    try:
+        return set([par.modelname for par in get_model(id).pars])
+    except IdentifierErr:
+        return set([])
