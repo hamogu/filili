@@ -84,9 +84,10 @@ class model(object):
     TBD:when looking up parts of the model use get_model_parts instead of n_lines+str(i). This makes it more flexible (modelcomponents might have been deleted by the user / other functions) and might get rid of self.n_lines alltogether.
     '''
     
-    def __init__(self, contmodel, linemodel, contmodname = '', linemodname = '', convol_model = None, baseline = None):
+    def __init__(self, contmodel, linemodel, id = None, contmodname = '', linemodname = '', convol_model = None, baseline = None):
         self.contmodel = contmodel
         self.linemodel = linemodel
+        self.id = id
         if not contmodname:
             self.contmodname = contmodel.strip()[0]
         if not linemodname:
@@ -97,14 +98,14 @@ class model(object):
         self.baseline = baseline
         self.convol_model = convol_model
         # remove old models first
-        delete_model()
+        delete_model(self.id)
         self.set_model()
         
     def set_model(self, **kwargs):
         if self.convol_model:
-            set_full_model(self.convol_model + ' (' + self.modelstring(**kwargs) + ')')
+            set_full_model(self.id, self.convol_model + ' (' + self.modelstring(**kwargs) + ')')
         else:
-            set_model(self.modelstring(**kwargs))
+            set_model(self.id, self.modelstring(**kwargs))
     
     def modelstring(self, **kwargs):
         # if names is longer then line_name_list, then make model
@@ -139,9 +140,8 @@ class model(object):
                 else:
                     linenames.append(self.linemodname + str(i))
                     break
-
         self.set_model(names = linenames)
-        modelcomp = get_model_component(self.line_name_list()[-1])
+        modelcomp = get_model_component(linenames[-1])
         if self.baseline:
             smh.copy_pars(self.baseline, modelcomp)
         for key in kwargs:
@@ -150,16 +150,20 @@ class model(object):
     def line_name_list(self):
         '''get list of all model components that are lines
         '''
-        parts_list = smh.get_model_parts()
+        parts_list = smh.get_model_parts(self.id)
         return list([part for part in parts_list if part.startswith(self.linemodname)])
 
-    def line_value_list(self, param, key = 'val'):
+    def line_value_list(self, param, linenamelist = None, key = 'val'):
         '''get a list of values of one parameter for every line
         
         Parameters
         ----------
         param : string
             name of parameter e.g. `fwhm'
+        linenamelist : list, optional
+            list of line names. Can be passed in to e.g. ensure e.g. a
+            particular order of the lines or to retrieve only a subset of 
+            values. 
         key : string, optional
             As default the value of the parameters is returned, but Sherpa
             parameters have other properties e.g. `min` or `hardmin`.
@@ -168,8 +172,9 @@ class model(object):
         -------
         parts_list : ndarray
         '''
-        lines = self.line_name_list()
-        return np.array([getattr(getattr(get_model_component(part), param), key) for part in lines])
+        if linenamelist is None:
+            linenamelist = self.line_name_list()
+        return np.array([getattr(getattr(get_model_component(part), param), key) for part in linenamelist])
     
     def line_list(self):
         '''
@@ -178,16 +183,16 @@ class model(object):
         line_list : record array
             the record array holds the values of all parameters of the lines
             in the model.
-            If the model has not lines, an empty array is returned.
+            If the model has no lines, an empty array is returned.
         '''
-        lines = self.line_comp_list()
+        lines = self.line_name_list()
         if len(lines) == 0:
             return np.array([])
         else:
             names = [p.name for p in get_model_component(lines[0]).pars]
             line_list = np.zeros(len(lines), dtype = {'names': names, 'formats': len(names) * ['f4']})
             for name in names:
-                line_list[name] = self.line_value_list(name)
+                line_list[name] = self.line_value_list(name, linenamelist = lines)
  
             return line_list
                 
@@ -224,46 +229,40 @@ class model(object):
             kwargs['fwhm'] = wave[max(ind[bool_ind])] - wave[min(ind[bool_ind])]
         return kwargs
         
-    def plot_model_components(self, id = None, legend = True):
+    def plot_model_components(self, legend = True):
         '''Plot contribution of individual model components
         
         If matplotlib can be imported, it is used directly, otherwise
         if falls back to Sherpa plotting (e.g. with chips).
         
-        Parameters
-        ----------
-        id : None or Sherpa dataset id
-        
         Returns
         -------
         fig : matplotlib figure instance
         '''
-        if id is None:
-            id = get_default_id()
         fig = plt.figure()
         if has_mpl:
             ax = fig.add_subplot(111)
-            pl = get_data_plot(id)
+            pl = get_data_plot(self.id)
             ax.errorbar(pl.x, pl.y, yerr=pl.yerr, fmt='+', label = 'data')
             for part in smh.get_model_parts():
-                pl = get_model_component_plot(id, model = part)
+                pl = get_model_component_plot(self.id, model = part)
                 ax.plot(pl.x, pl.y, label = part)
             if legend:
                 ax.legend(ncol = 2)
             ax.set_title('Individual model components')
         else:
-            plot_fit()
+            plot_fit(self.id)
             for part in smh.get_model_parts():
-                plot_model_component(id, part, overplot = True)
+                plot_model_component(self.id, part, overplot = True)
         return fig
 
 class GaussLines(model):
-    def __init__(self, contmodel, contmodname = '', **kwargs):
-        model.__init__(self, contmodel, 'gauss1d', contmodname = '', **kwargs)
-        
+    def __init__(self, contmodel, id = None, contmodname = '', **kwargs):
+        model.__init__(self, contmodel, 'gauss1d', id, contmodname = '', **kwargs)
+
 class LorentzLines(model):
-    def __init__(self, contmodel, contmodname = '', **kwargs):
-        model.__init__(self, contmodel, 'lorentz1d', contmodname = '', **kwargs)
+    def __init__(self, contmodel, id = None, contmodname = '', **kwargs):
+        model.__init__(self, contmodel, 'lorentz1d', id, contmodname = '', **kwargs)
 
     def guess(self, wave, flux, pos, **kwargs):
         '''Guess ampl from flux and fwhm value.
