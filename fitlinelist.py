@@ -21,7 +21,7 @@ class NoPlottingSystemError(Exception):
 import filili
 import filili.multilist
 
-ui.set_stat('cstat')
+#ui.set_stat('cstat')
 ui.set_method_opt('epsfcn', 2.2e-16)
 
 
@@ -53,7 +53,7 @@ def fit_lines(linelist, id = None, delta_lam = .2, plot = False, outfile = None)
             dl = lwave - linelist['wave'][0]
             ui.link(ui.get_model_component(newline).pos, ui.get_model_component(firstline).pos + dl)
     
-    ui.set_analysis("wave")
+    #ui.set_analysis("wave")
     ui.ignore(None, None) #ignores all data
     ui.notice(min(linelist['wave'])-delta_lam, max(linelist['wave']) + delta_lam)
     ui.fit(id)
@@ -72,7 +72,7 @@ def fit_lines(linelist, id = None, delta_lam = .2, plot = False, outfile = None)
             raise NoPlottingSystemError("Neither pychips nor matplotlib are found.")
 
 
-def fit_multiplets(multipletlist, id = None, outpath = None, plot = False):
+def fit_multiplets(multipletlist, id = None, outpath = None, plot = False, delta_lam = .2):
     #
     n_lines =  np.sum([len(mult['wave']) for mult in multipletlist])
     result = np.zeros(n_lines, dtype = {'names': ['multname', 'linename', 'wave', 'flux', 'errup', 'errdown', 'photons'], 'formats': ['S30', 'S30', 'f4', 'f4', 'f4', 'f4', 'f4']})
@@ -83,7 +83,7 @@ def fit_multiplets(multipletlist, id = None, outpath = None, plot = False):
             outfile = os.path.join(outpath, filter(lambda x: x.isalnum(), mult['name']))
         else:
             outfile = None
-        fit_lines(mult, id, delta_lam = .2, plot = plot, outfile = outfile)
+        fit_lines(mult, id, delta_lam = delta_lam, plot = plot, outfile = outfile)
         #    
         ui.conf(id)
         conf_res = ui.get_conf_results()
@@ -103,6 +103,7 @@ def fit_multiplets(multipletlist, id = None, outpath = None, plot = False):
             # determine scaling between ampl and flux
             par.ampl.val = 1
             amp2flux = ui.calc_energy_flux(None, None, id)
+            par.ampl.val = conf_res.parvals[indconf_res]
             #
             val = conf_res.parvals[indconf_res] * amp2flux
             errdown = conf_res.parmins[indconf_res] * amp2flux if conf_res.parmins[indconf_res] else np.nan
