@@ -75,7 +75,7 @@ def fit_lines(linelist, id = None, delta_lam = .2, plot = False, outfile = None)
 def fit_multiplets(multipletlist, id = None, outpath = None, plot = False, delta_lam = .2):
     #
     n_lines =  np.sum([len(mult['wave']) for mult in multipletlist])
-    result = np.zeros(n_lines, dtype = {'names': ['multname', 'linename', 'wave', 'flux', 'errup', 'errdown', 'photons'], 'formats': ['S30', 'S30', 'f4', 'f4', 'f4', 'f4', 'f4']})
+    result = np.zeros(n_lines, dtype = {'names': ['multname', 'linename', 'wave', 'flux', 'errup', 'errdown', 'photons', 'photonflux'], 'formats': ['S30', 'S30', 'f4', 'f4', 'f4', 'f4', 'f4', 'f4']})
     currentline = 0
     #
     for mult in multipletlist:
@@ -100,16 +100,18 @@ def fit_multiplets(multipletlist, id = None, outpath = None, plot = False, delta
             counts = ui.calc_model_sum(None, None, id)
             #
             print(lname, counts)
+            photonflux = ui.calc_photon_flux(None, None, id)
             # determine scaling between ampl and flux
             par.ampl.val = 1
             amp2flux = ui.calc_energy_flux(None, None, id)
+
             par.ampl.val = conf_res.parvals[indconf_res]
             #
             val = conf_res.parvals[indconf_res] * amp2flux
             errdown = conf_res.parmins[indconf_res] * amp2flux if conf_res.parmins[indconf_res] else np.nan
             errup  = conf_res.parmaxes[indconf_res] * amp2flux if conf_res.parmaxes[indconf_res] else np.nan
             #
-            result[currentline] = (mult['name'], lname, lwave, val, errup, errdown, counts)
+            result[currentline] = (mult['name'], lname, lwave, val, errup, errdown, counts, photonflux)
             #
             currentline +=1
     return result
