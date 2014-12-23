@@ -68,7 +68,7 @@ def load_pars(filename, modcomps=[]):
     and set the input model components with the parameter attributes.
 
     `filename`  ASCII file name
-    `modcomps`  list of model components (strings or objects) to save
+    `modcomps`  list of model components (strings or objects) to load
     
     :author: Brian Refsdal
     
