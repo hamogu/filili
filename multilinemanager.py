@@ -1,5 +1,5 @@
 '''Modul to setup and manipulate Sherpa model expressions which consist
-of one background model and many identicla lines.
+of one background model and many identical lines.
 '''
 import numpy as np
 try:

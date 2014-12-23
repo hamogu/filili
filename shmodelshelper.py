@@ -131,7 +131,7 @@ def copy_pars(oldcomp, newcomp, sametype = True):
         if not (type(oldcomp) == type(newcomp)):
             raise TypeError('Old and new model component must be of same type')
     #
-    for parold, parnew in zip(get_model_component(oldcomp).pars, get_model_component(newcomp).pars):
+    for parold, parnew in zip(oldcomp.pars, newcomp.pars):
         # min cannot be above max.
         # set to -+inf to avoid problems with previously set pars
         setattr(parnew, "min", getattr(parnew, "hard_min"))
