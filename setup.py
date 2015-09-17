@@ -66,7 +66,7 @@ setup_args = {
         ],
 
     'packages': find_packages(),
-    'package_data' = {
+    'package_data' : {
         'sample_linelists': ['*.dat'],
         },
 
