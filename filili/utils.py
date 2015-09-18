@@ -2,7 +2,7 @@
 
 
 
-def get_flat_element(nested, name, include_missing=True):
+def get_flat_elements(nested, name, include_missing=True):
     '''Return a genrator that parses nested lists of lists of dicts.
 
     The inner most elements have to be dicts. Construct a flat list of

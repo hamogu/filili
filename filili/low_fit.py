@@ -9,7 +9,7 @@ the parameter names start with f, but that's no consistent so far.
 from warnigs import warn
 
 from .shmodelshelper import copy_pars
-from .utils import get_flat_element
+from .utils import get_flat_elements
 
 from sherpa.astro.ui import set_parameter_from_dict
 from sherpa import stats, optmethods, fit
@@ -86,7 +86,7 @@ class ModelMaker(object):
     def check_names_unique(modellist):
         '''Raise an Error if non-unique names are found in the modellist.'''
         nameslist = list(get_flat_elements(modellist, 'name', include_missing=False))
-        nonunique = set([x for x in l if nameslist.count(x) > 1])
+        nonunique = set([x for x in nameslist if nameslist.count(x) > 1])
         if len(nonunique) > 0:
             raise NonUniqueModelNames('Lines names must be unique. The following names appear more than once: {0}'.format(nonunique))
 
@@ -133,7 +133,8 @@ class ModelMaker(object):
         Parameters
         ----------
         fmodellist : list of lists
-            Each list in fmodellist has to contain a dict that describes a model
+            Each list in fmodellist has to contain a dict that describes a
+            model
         basemodellist : list
             Each element in basemodel is a Sherpa model instance, that serves
             as the base model for all dicts in the respective list.
@@ -320,11 +321,10 @@ class Master(object):
             modellist = self.modelmaker.models_from_list(fmodellist, basemodels)
             model = self.modelmaker.finalize_model(modellist)
 
-            fitresult = self.fitter.fit(data, model)
+            fitresult, uncertainty = self.fitter.fit(data, model)
             self.plotter.plot(data, model, title=region['name'])
             self.fitreporter.report(fitresult, region)
-            errres = f.est_errors()
-            self.confreporter.report(errres, region)
+            self.confreporter.report(uncertainty, region)
 
 
 from COSlsf import empG160M
