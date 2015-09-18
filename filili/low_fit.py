@@ -20,8 +20,10 @@ from sherpa import stats, optmethods, fit
 # each line must have "name"
 # group of lines have fixed wavelength, same modeltype
 
+
 class NonUniqueModelNames(Exception):
     pass
+
 
 def constant_difference(modellist, parameter):
     '''Link models so that the difference in a certain parameter stays constant.
@@ -55,14 +57,7 @@ def constant_difference(modellist, parameter):
         m.pos.link = basepar + diff
 
 
-class MasterFitter(object):
-
-    fit_settings = {'stat': stats.Chi2(),
-                    'method': optmethods.LevMar(),
-                    'estmethod': None,
-                    'itermethod_opts': {'name': 'none'},
-                    }
-
+class ModelMaker(object):
     _modelcounter = 0
 
     @property
@@ -140,8 +135,8 @@ class MasterFitter(object):
         fmodellist : list of lists
             Each list in fmodellist has to contain a dict that describes a model
         basemodellist : list
-            Each element in basemodel is a Sherpa model instance, that serves as the base
-            model for all dicts in the respective list.
+            Each element in basemodel is a Sherpa model instance, that serves
+            as the base model for all dicts in the respective list.
 
         Returns
         -------
@@ -150,11 +145,12 @@ class MasterFitter(object):
 
         Example
         ------
-        In this example, we make a model with a constant (initialized at the default parameter values)
-        and two Lorentzian line. Both are fairly narrow and they starting positions are 2. and 3.
-        In this example, we could have types the model out just as easily by hand, but when we
-        manage a dozen or more lines of very similar properties, then this function will
-        come in handy.
+        In this example, we make a model with a constant (initialized at the
+        default parameter values) and two Lorentzian line.
+        Both are fairly narrow and they starting positions are 2. and 3.
+        In this example, we could have types the model out just as easily by
+        hand, but when we manage a dozen or more lines of very similar
+        properties, then this function will come in handy.
 
         >>> from sherpa.astro.models import Lorentz1D
         >>> from sherpa.models import Const1D
@@ -187,19 +183,20 @@ class MasterFitter(object):
 
         modellist = []
         for ms, basemodel in zip(fmodellist, basemodellist):
-            modelgroup = make_model_group(ms, basemodel)
+            modelgroup = self.make_model_group(ms, basemodel)
             modellist.append(modelgroup)
 
         return modellist
-
 
     def finalize_model(self, modellist):
         '''Construct a single Sherpa model from a list of models.
 
         Overwrite this method in the derived class, e.g. to wrap the
         entire model into a convolution model to apply an instrument
-        response function.
-        The default is to just add up all the models in the input ``modellist``.
+        response function or to link the wavelength of all lines in
+        the first group of elements.
+        The default is to just add up all the models in the input
+        ``modellist``.
 
         Parameters
         ----------
@@ -218,24 +215,97 @@ class MasterFitter(object):
             model = model + m
         return model
 
-    def loop_regions(self, regions, basemodellist=None):
+
+class Fitter(object):
+    fit_settings = {'stat': stats.Chi2(),
+                    'method': optmethods.LevMar(),
+                    'estmethod': None,
+                    'itermethod_opts': {'name': 'none'},
+                    }
+
+    def fit_valid(self, fitresult):
+        '''Decide if the resulting fit is a valid result.
+
+        You might want to modify this method in a derived class to analyze
+        if a fit should be accepted, based on e.g. the value of the fit
+        statistic.
+
+        In this implementation, we simply return the value of `succeed`
+        reported by Sherpa.
+
+        Parameters
+        ----------
+        fitresult : Sherpa fit results instance
+
+        Returns
+        -------
+        valid : bool
+        '''
+        return fitresult.succeeded
+
+    def fit(self, data, model):
+        '''Perform fit.
+
+        This fit uses the fit parameters set in `fit_settings`, so an easy way
+        to customize the way the fits is done is to change that attribute.
+
+        Override this method for more complex fitting schemes.
+        Currently, it just performs a single Sherpa fit with default settings.
+        Other things that could be implemented here is to restart a fit with
+        different initial values or with a different fit method if the results
+        seem unrealistic.
+
+        Parameters
+        ----------
+        data : sherpa data
+            This must be an instance of a Sherpa data class, e.g Data1D,
+            with all the appropriate notice and ignore filters already set.
+        model : sherpa model
+            Sherpa model instance.
+
+        Returns
+        -------
+        result : Sherpa fit result
+        '''
+        f = fit.Fit(data, model, **self.fit_settings)
+        result = f.fit()
+        if not self.fit_valid(result):
+            warn('Fit failed.')
+        errres = f.est_errors()
+        return result, errres
+
+
+class Master(object):
+
+    def __init__(self, modelmaker, fitter, plotter, fitreporter, confreporter):
+        self.modelmaker = modelmaker
+        self.fitter = fitter
+        self.plotter = plotter
+        self.fitreporter = fitreporter
+        self.confreporter = confreporter
+
+    def loop_regions(self, data, regions, basemodellist=None):
         '''
 
         Parameters
         ----------
         regions : list
-            Every element in the list describes a spectral region that needs to be fit.
-            The elements are dictionaries which need to have the following keys:
+            Every element in the list describes a spectral region that needs to
+            be fit. The elements are dictionaries which need to have the
+            following keys:
 
             - *optional* ``name`` : string name to identify the region
-            - ``fmodellist``: list. See `additative_models_from_list` for details.
-              Each element in the list describes models to be fitted to one region.
-              Each element is again a list or lists,  where each element describes a group of models
-            - *optional* ``basemodels``: list. See `models_from_list` for details.
+            - ``fmodellist``: list. See `models_from_list` for details.
+              Each element in the list describes models to be fitted to one
+              region. Each element is again a list or lists,  where each
+              element describes a group of models
+            - *optional* ``basemodels``: list. See `models_from_list`
+              for details.
 
         basemodellist : list or ``None``
-            List of Sherpa model instances to be used as base models for regions,
-            that do not have a ``basemodels`` key. See `models_from_list` for details.
+            List of Sherpa model instances to be used as base models for
+            regions, that do not have a ``basemodels`` key. See
+            `models_from_list` for details.
         '''
         for region in regions:
             if 'basemodels' in region:
@@ -247,23 +317,24 @@ class MasterFitter(object):
             fmodellist = region['fmodellist']
             data.notice(region['range'][0], region['range'][1])
 
-            modellist = models_from_list(fmodellist, basemodellist)
-            model = self.finalize_model(modellist)
-            constant_difference(modellist[0], 'pos')  # Assuming H2 lines are frist sublist
+            modellist = self.modelmaker.models_from_list(fmodellist, basemodels)
+            model = self.modelmaker.finalize_model(modellist)
 
-
-            f = fit.Fit(data, model, **self.fit_settings)
-            result = f.fit()
-            if not result.succeeded:
-                warn('Fit failed')
-            # check chi^2 etc.
-            # plot_fit
+            fitresult = self.fitter.fit(data, model)
+            self.plotter.plot(data, model, title=region['name'])
+            self.fitreporter.report(fitresult, region)
             errres = f.est_errors()
+            self.confreporter.report(errres, region)
 
-        return some thing
+
+from COSlsf import empG160M
 
 
-class COSFUVFitter(MasterFitter):
+class COSFUVModelMaker(ModelMaker):
     def finalize_model(self, modellist):
-        model = super(COSFUVFitter, self.finalize_model(modellist)
+        model = super(COSFUVModelMaker, self.finalize_model(modellist))
+
+        # Assuming H2 lines are first sublist
+        constant_difference(modellist[0], 'pos')
+
         return empG160M(model)
