@@ -6,12 +6,11 @@ TODO: Mark consistenly where shepar models and where fililiy modes are required
 I started the convenciotn that fililit models (nested lists) are required
 the parameter names start with f, but that's no consistent so far.
 '''
-from warnigs import warn
+from warnings import warn
 
-from .shmodelshelper import copy_pars
+from .shmodelshelper import copy_pars, set_parameter_from_dict
 from .utils import get_flat_elements
 
-from sherpa.astro.ui import set_parameter_from_dict
 from sherpa import stats, optmethods, fit
 
 # linelist = [[group of model 1], [group of models 2], [line 3], [line 4]]
@@ -47,7 +46,7 @@ def constant_difference(modellist, parameter):
     >>> m2.pos=6
     >>> constant_difference([m1, m2], 'pos')
     >>> m1.pos = 5.
-    >>>print m2.pos.val
+    >>> print m2.pos.val
     7.0
 
     '''
@@ -69,7 +68,7 @@ class ModelMaker(object):
         self.__class__._modelcounter += 1
         return self._modelcounter
 
-    def check_names_complete(modellist):
+    def check_names_complete(self, modellist):
         '''Check if every model in the list has a 'name' specificed.
 
         Parameters
@@ -83,7 +82,7 @@ class ModelMaker(object):
         '''
         return None in get_flat_elements(modellist, 'name')
 
-    def check_names_unique(modellist):
+    def check_names_unique(self, modellist):
         '''Raise an Error if non-unique names are found in the modellist.'''
         nameslist = list(get_flat_elements(modellist, 'name', include_missing=False))
         nonunique = set([x for x in nameslist if nameslist.count(x) > 1])
@@ -155,16 +154,16 @@ class ModelMaker(object):
 
         >>> from sherpa.astro.models import Lorentz1D
         >>> from sherpa.models import Const1D
-        >>> from filili import MasterFitter
-        >>> linefitter = Masterfitter()
+        >>> from filili import ModelMaker
+        >>> maker = ModelMaker()
         >>> linebase = Lorentz1D()
         >>> linebase.fwhm = 0.01
         >>> constbase = Const1D()
         >>> myguess = [[{'name': 'const'}],
         ...            [{'name': 'line1', 'pos.val':2.},
         ...             {'name': 'line2', 'pos.val': 3.}]]
-        >>> mlist = linefitter.models_from_list(myguess, [constbase, linebase])
-        >>> mall = linefitter.finalize_model(mlist)
+        >>> mlist = maker.models_from_list(myguess, [constbase, linebase])
+        >>> mall = maker.finalize_model(mlist)
         >>> print mall
         ((const + line1) + line2)
         Param        Type          Value          Min          Max      Units
@@ -327,14 +326,14 @@ class Master(object):
             self.confreporter.report(uncertainty, region)
 
 
-from COSlsf import empG160M
+# from COSlsf import empG160M
 
 
-class COSFUVModelMaker(ModelMaker):
-    def finalize_model(self, modellist):
-        model = super(COSFUVModelMaker, self.finalize_model(modellist))
+# class COSFUVModelMaker(ModelMaker):
+#     def finalize_model(self, modellist):
+#         model = super(COSFUVModelMaker, self.finalize_model(modellist))
 
-        # Assuming H2 lines are first sublist
-        constant_difference(modellist[0], 'pos')
+#         # Assuming H2 lines are first sublist
+#         constant_difference(modellist[0], 'pos')
 
-        return empG160M(model)
+#         return empG160M(model)

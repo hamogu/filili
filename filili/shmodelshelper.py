@@ -81,7 +81,7 @@ def set_parameter_from_dict(par, d, name='name'):
     -------
 
     >>> from sherpa.models import Polynom1D
-    >>> mdl = models.Polynom1D('mdl')
+    >>> mdl = Polynom1D('mdl')
     >>> vals = {'c0.val': 1.2, 'c0.min': 0.7, 'c2.frozen': False}
     >>> set_parameter_from_dict(mdl.c0, vals)
     >>> print mdl
@@ -155,6 +155,7 @@ def copy_pars(oldcomp, newcomp, sametype=True):
     This routine then copies `val`, `max`, `min`, `frozen` and `link` values.
 
     Example:
+    >>> from sherpa.astro.ui import *
     >>> set_model(gauss1d.g1 + gauss1d.g2)
     >>> g1.pos.min = 0.
     >>> copy_pars(g1, g2)
@@ -186,14 +187,18 @@ def get_model_parts(id = None):
     Iterate through all components which are part of the Sherpa model
     and return their identifiers. Ignore all composite models.
 
-    Example:
+    Example
+    -------
+
     >>> from sherpa.ui import *
+    >>> load_arrays(1, [1,2,3], [1,2,3]) # Set some dummy data
     >>> set_model('const1d.c + gauss1d.lineg1 + gauss1d.lineg2 + gauss1d.lineg3')
-    >>> show_model()
+    >>> show_model() # doctest: +SKIP
         Model: 1
         (((const1d.c + gauss1d.lineg1) + gauss1d.lineg2) + gauss1d.lineg3)
-    >>> get_model_parts()
-        ['c', 'lineg1', 'lineg2', 'lineg3']
+        ...
+    >>> get_model_parts()  # doctest: +SKIP
+    {'c', 'lineg1', 'lineg2', 'lineg3'}
 
     '''
     try:
