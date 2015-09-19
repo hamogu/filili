@@ -18,7 +18,7 @@ class PyTest(TestCommand):
 
     def initialize_options(self):
         TestCommand.initialize_options(self)
-        self.pytest_args = ['marxs', 'docs']
+        self.pytest_args = ['filili', 'docs']
 
     def finalize_options(self):
         TestCommand.finalize_options(self)

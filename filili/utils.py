@@ -33,5 +33,5 @@ def get_flat_elements(nested, name, include_missing=True):
                 return
     else:
         for sublist in nested:
-            for element in get_flat_element(sublist, name):
+            for element in get_flat_elements(sublist, name, include_missing=include_missing):
                 yield element
