@@ -7,11 +7,19 @@ I started the convenciotn that fililit models (nested lists) are required
 the parameter names start with f, but that's no consistent so far.
 '''
 from warnings import warn
+from collections import defaultdict
 
 from .shmodelshelper import copy_pars, set_parameter_from_dict
 from .utils import get_flat_elements
 
 from sherpa import stats, optmethods, fit
+
+try:
+    import matplotlib as mpl
+    import matplotlib.pyplot as plt
+    HAS_MPL = True
+except ImportError:
+    HAS_MPL = False
 
 # linelist = [[group of model 1], [group of models 2], [line 3], [line 4]]
 # Note: Currently even cingle models must be in a list of one element.
@@ -266,21 +274,24 @@ class Fitter(object):
         Returns
         -------
         result : Sherpa fit result
+        f : sherpa fit object
+            This is the fit object that corresponds to the result object.
         '''
         f = fit.Fit(data, model, **self.fit_settings)
         result = f.fit()
         if not self.fit_valid(result):
             warn('Fit failed.')
-        errres = f.est_errors()
-        return result, errres
+        return result, f
+
+    def est_errors(self, fit):
+        return fit.est_errors()
 
 
 class Master(object):
 
-    def __init__(self, modelmaker, fitter, plotter, fitreporter, confreporter):
+    def __init__(self, modelmaker, fitter, fitreporter=None, confreporter=None):
         self.modelmaker = modelmaker
         self.fitter = fitter
-        self.plotter = plotter
         self.fitreporter = fitreporter
         self.confreporter = confreporter
 
@@ -315,15 +326,74 @@ class Master(object):
             else:
                 raise ValueError('Base models must be defined in region or as basemodellist.')
             fmodellist = region['fmodellist']
+            data.notice()  # Reset maks
             data.notice(region['range'][0], region['range'][1])
 
             modellist = self.modelmaker.models_from_list(fmodellist, basemodels)
             model = self.modelmaker.finalize_model(modellist)
 
-            fitresult, uncertainty = self.fitter.fit(data, model)
-            self.plotter.plot(data, model, title=region['name'])
-            self.fitreporter.report(fitresult, region)
-            self.confreporter.report(uncertainty, region)
+            fitresult, fit = self.fitter.fit(data, model)
+            if self.fitreporter is not None:
+                self.fitreporter.report_fit(data, fitresult, region)
+            if self.confreporter is not None:
+                uncertainty = self.fitter.est_errors(fit)
+                self.confreporter.report_error(data, uncertainty, region)
+
+
+class SherpaReporter(object):
+
+    plotargs = {'dataplot': {'drawstyle': 'steps-mid',
+                             'color' : 'k',
+                             'label' : 'data'},
+                'errorbar': {'color': '0.8'},
+                'modelplot': {'color': 'r',
+                              'label': 'model'},
+                'filetype': 'png'
+                # 'xlabel': '$\lambda [\AA]$',
+                # 'ylabel': 'Flux'
+    }
+
+    def __init__(self, plot_path=False):
+        self.results = defaultdict(dict)
+        self.plot_path = plot_path
+
+    def plot(self, *args, **kwargs):
+        if HAS_MPL:
+            self.plot_mpl(*args, **kwargs)
+        else:
+            #self.plot_chips(*args, **kwargs)
+            raise NotImplementedError
+
+    def plot_mpl(self, data, fitresult, region):
+        fig = plt.figure()
+        ax = fig.add_subplot(111)
+        x, y, yerr, temp1, xlab, ylab = data.to_plot()
+        ax.plot(x, y, **self.plotargs['dataplot'])
+        ax.errorbar(x, y, yerr, **self.plotargs['errorbar'])
+        ax.plot(x, fitresult.modelvals, **self.plotargs['modelplot'])
+        ax.set_title(region['name'])
+        # 'x' means "sherpa has no idea"
+        ax.set_xlabel(self.plotargs.get('xlabel', xlab))
+        ax.set_ylabel(self.plotargs.get('ylabel', ylab))
+        if isinstance(self.plot_path, basestring):
+            fig.savefig(self.plot_path + region['name'] + '.' + self.plotargs['filetype'])
+
+
+    def report_fit(self, data, fitresult, region):
+
+        for n in ['statval', 'numpoints', 'dof', 'qval', 'rstat', 'message']:
+            self.results[region['name']][n] = getattr(fitresult, n)
+
+        if self.plot_path is not False:
+            self.plot(data, fitresult, region)
+
+        # can keep parmeter values agian, but should I?
+        # Could just save all the full model as in save_pars.
+
+    def report_error(self, data, uncertainty, region):
+        for n in ['sigma', 'percent', 'parnames', 'parvals', 'parmins', 'parmaxes']:
+            self.results[region['name']][n] = getattr(uncertainty, n)
+        # Save model again, since it can change during the conf calculation
 
 
 # from COSlsf import empG160M
