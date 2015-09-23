@@ -331,6 +331,8 @@ class Master(object):
 
             modellist = self.modelmaker.models_from_list(fmodellist, basemodels)
             model = self.modelmaker.finalize_model(modellist)
+            # always keep a reference to the last used model for debugging
+            self.last_model = model
 
             fitresult, fit = self.fitter.fit(data, model)
             if self.fitreporter is not None:
@@ -371,7 +373,7 @@ class SherpaReporter(object):
         ax.plot(x, y, **self.plotargs['dataplot'])
         ax.errorbar(x, y, yerr, **self.plotargs['errorbar'])
         ax.plot(x, fitresult.modelvals, **self.plotargs['modelplot'])
-        ax.set_title(region['name'])
+        ax.set_title('Region: {0}'.format(region['name']))
         # 'x' means "sherpa has no idea"
         ax.set_xlabel(self.plotargs.get('xlabel', xlab))
         ax.set_ylabel(self.plotargs.get('ylabel', ylab))

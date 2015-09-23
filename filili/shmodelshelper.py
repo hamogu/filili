@@ -4,6 +4,8 @@ Module with helpers to manage Sherpa model parameters
 
 import json
 import os
+from copy import copy
+
 from sherpa.astro.ui import get_model_component, get_model
 from sherpa.utils.err import IdentifierErr
 
@@ -64,7 +66,7 @@ def save_pars(filename, modcomps=[], clobber=False):
 
 
 
-def set_parameter_from_dict(par, d, name='name'):
+def set_parameter_from_dict(par, d, name='name', strict=True):
     '''Set Sherpa parameter from a dictionary.
 
     Parameters
@@ -76,6 +78,11 @@ def set_parameter_from_dict(par, d, name='name'):
     name : string
         Can be 'name' (if the dictionary keys do not contain the model name)
         or 'fullname' (for dictionary keys like ``mymodel.pos.val``)
+
+    strict : bool
+        If ``True`` this will raise a `KeyError` if any key in the dictionary
+        starts with the parameter name but there is no corresponding parameter
+        property.
 
     Example
     -------
@@ -100,23 +107,30 @@ def set_parameter_from_dict(par, d, name='name'):
        mdl.offset   frozen            0 -3.40282e+38  3.40282e+38
 
     '''
+    # dicts are mutable. Make a local copy, so the dict on the caller is unmodified.
+    d = copy(d)
     for elem in ["min", "max", "val"]:
         key = getattr(par, name) + "." + elem
         if key in d:
-            setattr(par, elem, d.get(key))
+            setattr(par, elem, d.pop(key))
 
     elem = "frozen"
     key = getattr(par, name) + "." + elem
     if key in d:
-        setattr(par, elem, bool(int(d.get(key))))
+        setattr(par, elem, bool(int(d.pop(key))))
 
     elem = "link"
     key = getattr(par, name) + "." + elem
-    attr = str(d.get(key, ''))
+    attr = str(d.pop(key, ''))
     if attr:
         mdl, param = attr.split('.')
         param = getattr(get_model_component(mdl), param)
         setattr(par, elem, param)
+
+    if strict:
+        for k in d.keys():
+            if k.startswith(getattr(par, name)):
+                raise KeyError('The following key is not understood: {0}\nDid you mean {1}?'.format(k, k + '.val'))
 
 
 def load_pars(filename, modcomps=[]):
@@ -179,7 +193,7 @@ def copy_pars(oldcomp, newcomp, sametype=True):
         setattr(parnew, "min", getattr(parnew, "hard_min"))
         setattr(parnew, "max", getattr(parnew, "hard_max"))
         for elem in ["min", "max", "val", "frozen", "link"]:
-            setattr(parnew, elem, getattr(parold,elem))
+            setattr(parnew, elem, getattr(parold, elem))
 
 def get_model_parts(id = None):
     '''obtain a list of strings for sherpa models
