@@ -130,7 +130,7 @@ def set_parameter_from_dict(par, d, name='name', strict=True):
     if strict:
         for k in d.keys():
             if k.startswith(getattr(par, name)):
-                raise KeyError('The following key is not understood: {0}\nDid you mean {1}?'.format(k, k + '.val'))
+                raise KeyError('The following key is not understood: {0} - Did you mean {1}?'.format(k, k + '.val'))
 
 
 def load_pars(filename, modcomps=[]):
@@ -192,7 +192,7 @@ def copy_pars(oldcomp, newcomp, sametype=True):
         # set to -+inf to avoid problems with previously set pars
         setattr(parnew, "min", getattr(parnew, "hard_min"))
         setattr(parnew, "max", getattr(parnew, "hard_max"))
-        for elem in ["min", "max", "val", "frozen", "link"]:
+        for elem in ["val", "min", "max", "frozen", "link"]:
             setattr(parnew, elem, getattr(parold, elem))
 
 def get_model_parts(id = None):
