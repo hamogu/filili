@@ -9,9 +9,12 @@ the parameter names start with f, but that's no consistent so far.
 from warnings import warn
 from collections import defaultdict
 
+import numpy as np
+
 from .shmodelshelper import copy_pars, set_parameter_from_dict
 from .utils import get_flat_elements
 
+import sherpa.models
 from sherpa import stats, optmethods, fit
 
 try:
@@ -336,10 +339,10 @@ class Master(object):
 
             fitresult, fit = self.fitter.fit(data, model)
             if self.fitreporter is not None:
-                self.fitreporter.report_fit(data, fitresult, region)
+                self.fitreporter.report_fit(data, model, fitresult, region)
             if self.confreporter is not None:
                 uncertainty = self.fitter.est_errors(fit)
-                self.confreporter.report_error(data, uncertainty, region)
+                self.confreporter.report_error(data, model, uncertainty, region)
 
 
 class SherpaReporter(object):
@@ -366,12 +369,24 @@ class SherpaReporter(object):
             #self.plot_chips(*args, **kwargs)
             raise NotImplementedError
 
-    def plot_mpl(self, data, fitresult, region):
+    def plot_model_components(self, ax, model, x, **kwargs):
+        # Duck-typing: All Sherpa binary models have a rhs
+        if hasattr(model, 'rhs'):
+            self.plot_model_components(ax, model.rhs, x, **kwargs)
+        else:
+            ax.plot(x, model(x), **kwargs)
+        # For additative models, we need to follow the left branch, too.
+        if hasattr(model, 'lhs') and hasattr(model, 'op') and (model.op == np.add):
+            self.plot_model_components(ax, model.lhs, x, **kwargs)
+
+
+    def plot_mpl(self, data, model, fitresult, region):
         fig = plt.figure()
         ax = fig.add_subplot(111)
         x, y, yerr, temp1, xlab, ylab = data.to_plot()
-        ax.plot(x, y, **self.plotargs['dataplot'])
+        self.plot_model_components(ax, model, x, ls='--', color='b')
         ax.errorbar(x, y, yerr, **self.plotargs['errorbar'])
+        ax.plot(x, y, **self.plotargs['dataplot'])
         ax.plot(x, fitresult.modelvals, **self.plotargs['modelplot'])
         ax.set_title('Region: {0}'.format(region['name']))
         # 'x' means "sherpa has no idea"
@@ -381,31 +396,18 @@ class SherpaReporter(object):
             fig.savefig(self.plot_path + region['name'] + '.' + self.plotargs['filetype'])
 
 
-    def report_fit(self, data, fitresult, region):
+    def report_fit(self, data, model, fitresult, region):
 
         for n in ['statval', 'numpoints', 'dof', 'qval', 'rstat', 'message']:
             self.results[region['name']][n] = getattr(fitresult, n)
 
         if self.plot_path is not False:
-            self.plot(data, fitresult, region)
+            self.plot(data, model, fitresult, region)
 
         # can keep parmeter values agian, but should I?
         # Could just save all the full model as in save_pars.
 
-    def report_error(self, data, uncertainty, region):
+    def report_error(self, data, model, uncertainty, region):
         for n in ['sigma', 'percent', 'parnames', 'parvals', 'parmins', 'parmaxes']:
             self.results[region['name']][n] = getattr(uncertainty, n)
         # Save model again, since it can change during the conf calculation
-
-
-# from COSlsf import empG160M
-
-
-# class COSFUVModelMaker(ModelMaker):
-#     def finalize_model(self, modellist):
-#         model = super(COSFUVModelMaker, self.finalize_model(modellist))
-
-#         # Assuming H2 lines are first sublist
-#         constant_difference(modellist[0], 'pos')
-
-#         return empG160M(model)
