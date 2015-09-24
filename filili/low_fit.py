@@ -303,12 +303,11 @@ class Master(object):
 
         Parameters
         ----------
-        regions : list
-            Every element in the list describes a spectral region that needs to
+        regions : dict
+            Every element in the dict describes a spectral region that needs to
             be fit. The elements are dictionaries which need to have the
             following keys:
 
-            - *optional* ``name`` : string name to identify the region
             - ``fmodellist``: list. See `models_from_list` for details.
               Each element in the list describes models to be fitted to one
               region. Each element is again a list or lists,  where each
@@ -321,7 +320,7 @@ class Master(object):
             regions, that do not have a ``basemodels`` key. See
             `models_from_list` for details.
         '''
-        for region in regions:
+        for name, region in regions.iteritems():
             if 'basemodels' in region:
                 basemodels = region['basemodels']
             elif basemodellist is not None:
@@ -339,10 +338,10 @@ class Master(object):
 
             fitresult, fit = self.fitter.fit(data, model)
             if self.fitreporter is not None:
-                self.fitreporter.report_fit(data, model, fitresult, region)
+                self.fitreporter.report_fit(name, data, model, fitresult, region)
             if self.confreporter is not None:
                 uncertainty = self.fitter.est_errors(fit)
-                self.confreporter.report_error(data, model, uncertainty, region)
+                self.confreporter.report_error(name, data, model, uncertainty, region)
 
 
 class SherpaReporter(object):
@@ -380,7 +379,7 @@ class SherpaReporter(object):
             self.plot_model_components(ax, model.lhs, x, **kwargs)
 
 
-    def plot_mpl(self, data, model, fitresult, region):
+    def plot_mpl(self, name, data, model, fitresult, region):
         fig = plt.figure()
         ax = fig.add_subplot(111)
         x, y, yerr, temp1, xlab, ylab = data.to_plot()
@@ -388,26 +387,26 @@ class SherpaReporter(object):
         ax.errorbar(x, y, yerr, **self.plotargs['errorbar'])
         ax.plot(x, y, **self.plotargs['dataplot'])
         ax.plot(x, fitresult.modelvals, **self.plotargs['modelplot'])
-        ax.set_title('Region: {0}'.format(region['name']))
+        ax.set_title('Region: {0}'.format(name))
         # 'x' means "sherpa has no idea"
         ax.set_xlabel(self.plotargs.get('xlabel', xlab))
         ax.set_ylabel(self.plotargs.get('ylabel', ylab))
         if isinstance(self.plot_path, basestring):
-            fig.savefig(self.plot_path + region['name'] + '.' + self.plotargs['filetype'])
+            fig.savefig(self.plot_path + name + '.' + self.plotargs['filetype'])
 
 
-    def report_fit(self, data, model, fitresult, region):
+    def report_fit(self, name, data, model, fitresult, region):
 
         for n in ['statval', 'numpoints', 'dof', 'qval', 'rstat', 'message']:
-            self.results[region['name']][n] = getattr(fitresult, n)
+            self.results[name][n] = getattr(fitresult, n)
 
         if self.plot_path is not False:
-            self.plot(data, model, fitresult, region)
+            self.plot(name, data, model, fitresult, region)
 
         # can keep parmeter values agian, but should I?
         # Could just save all the full model as in save_pars.
 
-    def report_error(self, data, model, uncertainty, region):
+    def report_error(self, name, data, model, uncertainty, region):
         for n in ['sigma', 'percent', 'parnames', 'parvals', 'parmins', 'parmaxes']:
-            self.results[region['name']][n] = getattr(uncertainty, n)
+            self.results[name][n] = getattr(uncertainty, n)
         # Save model again, since it can change during the conf calculation

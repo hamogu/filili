@@ -49,19 +49,19 @@ class Test_sherpa_fits(object):
     def test_fit_regions(self, sherpaspec):
         constbase = Const1D()
         gaussbase = Gauss1D()
-        guess = [{'name': 'region1', 'range': [15., 30.],
-                  'fmodellist': [[{'name': 'const'}],
-                                 [{'name': 'line1', 'pos.val': 20.5},
-                                  {'name': 'line2', 'pos.val': 26.5} ]]},
-                 {'name': 'region2', 'range': [35., 45.],
+        guess = {'region1': {'range': [15., 30.],
+                             'fmodellist': [[{'name': 'const'}],
+                                            [{'name': 'line1', 'pos.val': 20.5},
+                                             {'name': 'line2', 'pos.val': 26.5} ]]},
+                 'region2': {'range': [35., 45.],
                   'fmodellist': [[{'name': 'const'}],
                                  [{'name': 'line3', 'pos.val': 39.}]]}
-        ]
+        }
 
         reporter = SherpaReporter()
         fitmaster = Master(ModelMaker(), Fitter(), reporter, reporter)
         fitmaster.loop_regions(sherpaspec, guess, basemodellist=[constbase, gaussbase])
-        for r in guess:
+        for n, r in guess.iteritems():
             # Check is fit is good.
             # If it is, the input was read correctly.
-            assert reporter.results[r['name']]['rstat'] < 1.
+            assert reporter.results[n]['rstat'] < 1.
