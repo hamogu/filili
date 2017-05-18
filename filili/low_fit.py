@@ -374,7 +374,7 @@ class SherpaReporter(object):
             self.plot_model_components(ax, model.rhs, x, **kwargs)
         else:
             ax.plot(x, model(x), **kwargs)
-        # For additative models, we need to follow the left branch, too.
+        # For additive models, we need to follow the left branch, too.
         if hasattr(model, 'lhs') and hasattr(model, 'op') and (model.op == np.add):
             self.plot_model_components(ax, model.lhs, x, **kwargs)
 
@@ -392,7 +392,7 @@ class SherpaReporter(object):
         ax.set_xlabel(self.plotargs.get('xlabel', xlab))
         ax.set_ylabel(self.plotargs.get('ylabel', ylab))
         if isinstance(self.plot_path, basestring):
-            fig.savefig(self.plot_path + name + '.' + self.plotargs['filetype'])
+            fig.savefig('{0}{1}.{2}'.format(self.plot_path, name, self.plotargs['filetype']))
 
 
     def report_fit(self, name, data, model, fitresult, region):

@@ -73,6 +73,7 @@ setup_args = {
     'setup_requires': ["sherpa"],
     'install_requires': [],
     'tests_require': ['pytest'],
+    'zip_safe': False,
     }
 
 ### import README file ###
